@@ -3,7 +3,7 @@
 
 ## Step 1: Grab the stock prices for PG and VOO
 - Grab the stock prices data for PG and VOO, which tracks S&P 500 ETF, then compare the time series between them.
-  We grab the data from Yahoo Finance
+We grab the data from Yahoo Finance
 - This exercise can help us identify any possible correlation between the their stock prices.
 
 ## Step 2: To write some codes which processes the data in an appropriate way. 
