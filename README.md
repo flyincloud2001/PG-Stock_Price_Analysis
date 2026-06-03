@@ -1,3 +1,8 @@
 # PG Stock Price Analysis
-
-研究寶僑（Procter & Gamble）股票的量化分析專案
+- This is a project for the PG stock prices analysis. The goal includes but is not limited to understand the relationships of stock prices between PG and others.
+## The project consists fo three parts. 
+- The first part is note, which organizes the thoughts that come up during the analysis.
+- The second part is the analysis, which includes any codes and plots.
+- The third part is data, which store the data grabed from any data sources.
+## The project is created and updated simultaneously on my local device, my laptop, and github.
+## Reading the note section is the main way to understand and replicate this project. 
