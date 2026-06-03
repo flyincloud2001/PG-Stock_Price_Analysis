@@ -1,5 +1,5 @@
 # This is the first simple project, and the goals are the followings:
-tiem series analysis for PG stock prices over all the time istory.
+time series analysis for PG stock prices over all the time istory.
 
 ## Step 1: Grab the stock prices for PG and VOO
 - Grab the stock prices data for PG and VOO, which tracks S&P 500 ETF, then compare the time series between them.
