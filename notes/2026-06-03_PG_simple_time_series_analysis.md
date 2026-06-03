@@ -1,9 +1,10 @@
 # This is the first simple project, and the goals are the followings:
-- Grab the stock prices data for PG, then make them as a time series. The result should include some time series plots and analysis.
-- Grab the stock prices data for VOO, which tracks S&P 500 ETF, then compare the time series between these two stock prices.
+- tiem series analysis for PG stock prices over all the time istory.
 
-## Step 1: To know how to grab the data.
-- grab the data from Yahoo Finance.
+## Step 1: Grab the stock prices for PG and VOO
+- Grab the stock prices data for PG and VOO, which tracks S&P 500 ETF, then compare the time series between them.
+  We grab the data from Yahoo Finance
+- This exercise can help us identify any possible correlation between the their stock prices.
 
 ## Step 2: To write some codes which processes the data in an appropriate way. 
 
