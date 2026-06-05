@@ -6,10 +6,9 @@ Furthermore, since I recently open a position in PG stock, I am interested in an
   - CAGR (Compound Annual Growth Rate)
   - Correlation Coefficient between two stocks selected
 
-## Step 1: 
-
-## Step 2: 
-
-
-## Step 3: 
+## Step 1: Write the code stock_analysis_app.py
+- This code utilizes the python module streamlit to create a web platform
+- The web visualizes the stock price time series imported from Yahoo Finance, and calculate the data outlined at the beinging
+- This project is very easily done by claude code within an hour.
+- The web link is: https://pg-stockpriceanalysis-psvsaru5ab3wcrbjxhmpu9.streamlit.app/
 
