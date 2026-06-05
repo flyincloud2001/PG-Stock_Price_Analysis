@@ -66,6 +66,7 @@ if run_button:
     total_return = (price_end_main - price_start_main) / price_start_main * 100
 
     # 計算 CAGR（年化複合成長率）= (期末價 / 期初價)^(1/年數) - 1
+    MIN_YEARS_FOR_CAGR = 1.0
     cagr = (price_end_main / price_start_main) ** (1 / years) - 1
 
     # 計算兩支股票每日對數報酬率
@@ -79,7 +80,10 @@ if run_button:
 
     col1, col2, col3 = st.columns(3)
     col1.metric("Total Return", f"{total_return:.2f}%")
-    col2.metric("CAGR", f"{cagr * 100:.2f}%")
+    if years >= MIN_YEARS_FOR_CAGR:
+        col2.metric("CAGR", f"{cagr * 100:.2f}%")
+    else:
+        col2.metric("CAGR", "N/A（期間不足一年）")
     col3.metric(f"與 {benchmark_ticker} 相關係數", f"{correlation:.4f}")
 
     # ── 繪製標準化股價折線圖（起點皆為 100）────────────────
