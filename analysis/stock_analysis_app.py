@@ -38,7 +38,7 @@ if run_button:
         raw = yf.download(
             [main_ticker, benchmark_ticker],
             start=start_date,
-            end=end_date,
+            end=end_date + timedelta(days=1),
             auto_adjust=True,
             progress=False,
         )
