@@ -5,36 +5,36 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import date, timedelta
 
-# ── 頁面標題 ──────────────────────────────────────────────
-st.title("股票績效分析工具")
+# ── Page title ────────────────────────────────────────────
+st.title("Stock Performance Analysis Tool")
 
-# ── 側邊欄：使用者輸入區 ──────────────────────────────────
-st.sidebar.header("參數設定")
+# ── Sidebar: user input section ───────────────────────────
+st.sidebar.header("Parameters")
 
-# 主要股票代號輸入
-main_ticker = st.sidebar.text_input("主要股票代號", value="PG")
+# Primary stock ticker input
+main_ticker = st.sidebar.text_input("Primary Ticker", value="PG")
 
-# 基準股票代號輸入
-benchmark_ticker = st.sidebar.text_input("基準股票代號", value="VOO")
+# Benchmark stock ticker input
+benchmark_ticker = st.sidebar.text_input("Benchmark Ticker", value="VOO")
 
-# 開始日期輸入
-start_date = st.sidebar.date_input("開始日期", value=date(2010, 1, 1), min_value=date(1962, 1, 2), max_value=date.today())
+# Start date input
+start_date = st.sidebar.date_input("Start Date", value=date(2010, 1, 1), min_value=date(1962, 1, 2), max_value=date.today())
 
-# 結束日期輸入（預設今天）
-end_date = st.sidebar.date_input("結束日期", value=date.today())
+# End date input (defaults to today)
+end_date = st.sidebar.date_input("End Date", value=date.today())
 
-# 執行分析按鈕
+# Run analysis button
 run_button = st.sidebar.button("Run Analysis")
 
-# ── 按下按鈕後執行分析 ────────────────────────────────────
+# ── Execute analysis when button is clicked ───────────────
 if run_button:
-    # 驗證日期順序
+    # Validate date order
     if start_date >= end_date:
-        st.error("開始日期必須早於結束日期，請重新設定。")
+        st.error("Start date must be earlier than end date. Please adjust the date range.")
         st.stop()
 
-    # 從 yfinance 抓取兩支股票的歷史收盤價
-    with st.spinner("下載股價資料中..."):
+    # Fetch historical closing prices for both tickers via yfinance
+    with st.spinner("Downloading price data..."):
         raw = yf.download(
             [main_ticker, benchmark_ticker],
             start=start_date,
@@ -43,53 +43,53 @@ if run_button:
             progress=False,
         )
 
-    # 取出收盤價欄位；若只有單一股票 yfinance 回傳 DataFrame 而非 MultiIndex
+    # Extract the Close column; yfinance returns a flat DataFrame (not MultiIndex) for a single ticker
     if isinstance(raw.columns, pd.MultiIndex):
         close = raw["Close"][[main_ticker, benchmark_ticker]].dropna()
     else:
         close = raw[["Close"]].rename(columns={"Close": main_ticker}).dropna()
 
-    # 檢查資料是否足夠
+    # Ensure there is enough data to calculate metrics
     if close.empty or len(close) < 2:
-        st.error("無法取得足夠的股價資料，請確認股票代號與日期範圍。")
+        st.error("Insufficient price data. Please verify the ticker symbols and date range.")
         st.stop()
 
-    # 取期初與期末收盤價
+    # First and last closing prices for the primary ticker
     price_start_main = close[main_ticker].iloc[0]
     price_end_main = close[main_ticker].iloc[-1]
 
-    # 計算實際天數（以年為單位）
+    # Number of calendar days converted to years
     days = (close.index[-1] - close.index[0]).days
     years = days / 365
 
-    # 計算 Total Return（總報酬率）= (期末價 - 期初價) / 期初價 × 100
+    # Total Return = (ending price - starting price) / starting price × 100
     total_return = (price_end_main - price_start_main) / price_start_main * 100
 
-    # 計算 CAGR（年化複合成長率）= (期末價 / 期初價)^(1/年數) - 1
+    # CAGR = (ending price / starting price)^(1 / years) - 1
     MIN_YEARS_FOR_CAGR = 1.0
     cagr = (price_end_main / price_start_main) ** (1 / years) - 1
 
-    # 計算兩支股票每日對數報酬率
+    # Daily log returns for both tickers
     log_returns = np.log(close / close.shift(1)).dropna()
 
-    # 計算兩支股票對數報酬率的相關係數
+    # Pearson correlation coefficient of the two tickers' daily log returns
     correlation = log_returns[main_ticker].corr(log_returns[benchmark_ticker])
 
-    # ── 顯示統計數據 ─────────────────────────────────────
-    st.subheader(f"{main_ticker} 績效指標（{start_date} ～ {end_date}）")
+    # ── Display performance metrics ───────────────────────
+    st.subheader(f"{main_ticker} Performance Metrics ({start_date} to {end_date})")
 
     col1, col2, col3 = st.columns(3)
     col1.metric("Total Return", f"{total_return:.2f}%")
     if years >= MIN_YEARS_FOR_CAGR:
         col2.metric("CAGR", f"{cagr * 100:.2f}%")
     else:
-        col2.metric("CAGR", "N/A（期間不足一年）")
-    col3.metric(f"與 {benchmark_ticker} 相關係數", f"{correlation:.4f}")
+        col2.metric("CAGR", "N/A (period < 1 year)")
+    col3.metric(f"Correlation with {benchmark_ticker}", f"{correlation:.4f}")
 
-    # ── 繪製標準化股價折線圖（起點皆為 100）────────────────
-    st.subheader("標準化股價走勢（基準 = 100）")
+    # ── Plot normalized price chart (both start at 100) ───
+    st.subheader("Normalized Price Performance (Base = 100)")
 
-    # 將兩支股票股價標準化，使起點皆為 100
+    # Normalize both tickers so they start at 100
     normalized = close / close.iloc[0] * 100
 
     fig, ax = plt.subplots(figsize=(12, 5))
@@ -103,12 +103,12 @@ if run_button:
         linestyle="--",
     )
 
-    ax.set_title(f"{main_ticker} vs {benchmark_ticker} 標準化股價（起點 = 100）")
-    ax.set_xlabel("日期")
-    ax.set_ylabel("標準化股價")
+    ax.set_title(f"{main_ticker} vs {benchmark_ticker} Normalized Price (Base = 100)")
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Normalized Price")
     ax.legend()
     ax.grid(True, alpha=0.3)
 
-    # 將圖表顯示在 Streamlit 頁面上
+    # Render the chart in the Streamlit page
     st.pyplot(fig)
     plt.close(fig)
