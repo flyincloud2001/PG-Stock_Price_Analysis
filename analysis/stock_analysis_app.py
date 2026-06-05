@@ -18,7 +18,7 @@ main_ticker = st.sidebar.text_input("主要股票代號", value="PG")
 benchmark_ticker = st.sidebar.text_input("基準股票代號", value="VOO")
 
 # 開始日期輸入
-start_date = st.sidebar.date_input("開始日期", value=date(2010, 1, 1))
+start_date = st.sidebar.date_input("開始日期", value=date(2010, 1, 1), min_value=date(1962, 1, 2), max_value=date.today())
 
 # 結束日期輸入（預設今天）
 end_date = st.sidebar.date_input("結束日期", value=date.today())
