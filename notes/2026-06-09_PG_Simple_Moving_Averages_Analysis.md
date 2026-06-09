@@ -1,4 +1,4 @@
-# This is the first algorithm analysis on PG stock. This analyzes the single PG stock only.
+# This is the first algorithm analysis on PG stock - Simple Moving Averages. This analyzes the single PG stock only.
   I learned this method from the book: Python for Finance MASTERING DATA-DRIVEN FINANCE, and wrote the code for our stock analysis. Here I provide a brief logic behind this algorithm.
 
 ## What are we looking for?
