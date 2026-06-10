@@ -13,6 +13,6 @@ We are looking for the best two parameters, which are named sma1 and sma2 in the
   First, we fix sma1 and sma2 as adjustable variables. Second, we calculate the total return R% cumulatively multiplied by every-day return controlled by sma1 and sma2. Finally, we run over every possible values (sma1, sma2) to find the highest R%.
 
 ## How do we apply this algorithm to predict the prices?
-  We split the stock-price time series as 70% and 30%. The former period is used for training to find the best sma1 and sam2, and the latter period is where the best sma1 and sma2 are applied to.
-  As a result, the best sma1 and sma2 found in the former period give a total return R% = 204% for PG stock over the 70% former period of 2010-2024, while the actual return over this period is 247% if we keep holding this stock without selling it.
-  After applied to the latter period, our algorithm gives a total return as R% = 91%, while the actual return is 133%. Apparently the algorithm does not predict well on this product.
+  We split the stock-price time series into 70% and 30%. The former period is used for training to find the best sma1 and sma2, and the latter period is where the best sma1 and sma2 are applied to.
+  As a result, the best two parameters (in the sense that they give the highest excess return over this period) are found as sma1 = 36 days and sma2 = 260 days in the former period of 2010–2024.
+  After applying these two parameters to the latter period, our strategy gives a total return of -9.26%, while the benchmark return is +33.03%. Apparently the parameters we found do not generalize well.
