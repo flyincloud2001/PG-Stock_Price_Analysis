@@ -5,6 +5,7 @@ import yfinance as yf
 import matplotlib.pyplot as plt
 from itertools import product
 
+
 # ── 參數設定 ──────────────────────────────────────────────
 SYMBOL = 'PG'           # 寶僑公司股票代碼
 START  = '2010-01-01'   # 資料起始日
