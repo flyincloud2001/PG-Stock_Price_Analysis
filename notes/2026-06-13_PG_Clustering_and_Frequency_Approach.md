@@ -12,5 +12,3 @@
 
 ## How do we predict the prices
   We implemented these two algorithms purely out of curiosity. They are simple and clearly not meaningful for accurately predicting stock prices. However, it is interesting to observe the goodness of fit when comparing the actual price time series with our strategy's cumulative return time series on in-sample data. In the future, if we devise an algorithm we believe can genuinely predict stock prices, we can apply it to in-sample data first and then test it on out-of-sample data to evaluate its performance.
-
-#
