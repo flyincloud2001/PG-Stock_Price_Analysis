@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import os
 
+
 # 設定資料與圖片的儲存路徑
 PG_DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
 VOO_DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
