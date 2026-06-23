@@ -1,7 +1,7 @@
-# ── 套件匯入 ──────────────────────────────────────────────────────────────────
-# 注意：執行前請確認已安裝 ib_insync
-# 安裝指令：pip install ib_insync
-# 同時需要 IBKR TWS 或 IB Gateway 在本機運行，並開啟 API 連線
+# ── Imports ───────────────────────────────────────────────────────────────────
+# Note: install ib_insync before running:
+#   pip install ib_insync
+# IBKR TWS or IB Gateway must be running locally with API connections enabled.
 
 import numpy as np
 import pandas as pd
@@ -10,23 +10,23 @@ import time
 import logging
 from datetime import datetime
 
-# ib_insync：IBKR API 的 Python 封裝套件
-# 功能對應書中 fxcmpy：連線、取得行情、下單、查倉位
+# ib_insync: Python wrapper for the IBKR API
+# Provides the same functions as fxcmpy in the book: connect, get quotes, place orders, query positions
 from ib_insync import IB, Stock, MarketOrder, util
 
-# 機器學習套件（載入已訓練好的模型）
+# ML package (load a pre-trained model)
 from sklearn.svm import SVC
 
 # ════════════════════════════════════════════════════════════════════════════════
-# 第一步：訓練並儲存 SVM 模型
-# 這段程式碼只需執行一次，之後直接載入 algorithm.pkl 即可
+# Step 1: Train and save the SVM model
+# Run this section only once; afterwards load algorithm.pkl directly.
 # ════════════════════════════════════════════════════════════════════════════════
 import yfinance as yf
 
 def train_and_save_model(symbol='PG', lags=5, train_frac=0.8,
                           filepath='algorithm.pkl'):
     """
-    用歷史資料訓練 SVM 模型並儲存到檔案。
+    Train an SVM model on historical data and save it to a file.
     """
     raw  = yf.download(symbol, start='2015-01-01', end='2024-12-31',
                        auto_adjust=True)
@@ -36,7 +36,7 @@ def train_and_save_model(symbol='PG', lags=5, train_frac=0.8,
     data.dropna(inplace=True)
     data['direction'] = np.sign(data['returns']).astype(int)
 
-    # 建立二元化滯後特徵
+    # Build binary lag features
     cols = []
     for lag in range(1, lags + 1):
         col = f'lag_{lag}'
@@ -45,209 +45,210 @@ def train_and_save_model(symbol='PG', lags=5, train_frac=0.8,
     data.dropna(inplace=True)
     data[cols] = np.where(data[cols] > 0, 1, 0)
 
-    # 用前 train_frac 的資料訓練
+    # Train on the first train_frac of the data
     split = int(len(data) * train_frac)
     train = data.iloc[:split]
 
     model = SVC(C=1, kernel='linear', gamma='auto')
     model.fit(train[cols], train['direction'])
 
-    # 用 pickle 儲存模型，之後可以直接載入使用
+    # Serialize the model with pickle for later use
     with open(filepath, 'wb') as f:
         pickle.dump({'model': model, 'lags': lags, 'cols': cols}, f)
 
-    print(f'模型已儲存至 {filepath}')
+    print(f'Model saved to {filepath}')
     return model, cols
 
-# 執行訓練（第一次執行時取消以下的注解）
+# Run training (uncomment the line below on first run)
 # model, cols = train_and_save_model()
 
 # ════════════════════════════════════════════════════════════════════════════════
-# 第二步：設定 logging（紀錄交易日誌）
+# Step 2: Configure logging (record trade log)
 # ════════════════════════════════════════════════════════════════════════════════
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s %(levelname)s %(message)s',
     handlers=[
-        logging.FileHandler('trading_log.txt'),   # 寫入檔案
-        logging.StreamHandler()                   # 同時印在終端機
+        logging.FileHandler('trading_log.txt'),   # Write to file
+        logging.StreamHandler()                   # Also print to terminal
     ]
 )
 logger = logging.getLogger(__name__)
 
 # ════════════════════════════════════════════════════════════════════════════════
-# 第三步：IBKR 連線與交易參數設定
+# Step 3: IBKR connection and trading parameters
 # ════════════════════════════════════════════════════════════════════════════════
 
-# IBKR 連線設定
-HOST     = '127.0.0.1'  # TWS 或 IB Gateway 的 IP（本機）
-PORT     = 7497          # TWS Paper Trading 的預設 port（正式帳號用 7496）
-CLIENT_ID = 1            # 每個連線需要不同的 client ID
+# IBKR connection settings
+HOST     = '127.0.0.1'  # IP of TWS or IB Gateway (localhost)
+PORT     = 7497          # Default port for TWS Paper Trading (live account uses 7496)
+CLIENT_ID = 1            # Each connection requires a unique client ID
 
-# 交易參數
-SYMBOL      = 'PG'       # 股票代碼
-EXCHANGE    = 'SMART'    # IBKR 智慧路由
+# Trading parameters
+SYMBOL      = 'PG'       # Stock ticker
+EXCHANGE    = 'SMART'    # IBKR smart order routing
 CURRENCY    = 'USD'
-QUANTITY    = 10         # 每次交易的股數
-BAR_SIZE    = '1 min'    # 重新取樣的 bar 長度（測試用1分鐘，實際部署可改5分鐘）
-LAGS        = 5          # 特徵滯後天數
+QUANTITY    = 10         # Number of shares per trade
+BAR_SIZE    = '1 min'    # Bar length for resampling (1 min for testing; use 5 min in production)
+LAGS        = 5          # Number of lag features
 
 # ════════════════════════════════════════════════════════════════════════════════
-# 第四步：定義 Online Algorithm 的核心邏輯
+# Step 4: Core logic of the Online Algorithm
 # ════════════════════════════════════════════════════════════════════════════════
 
 class IBKROnlineTrader:
     """
-    IBKR 即時交易策略類別。
-    概念：
-    1. 訂閱 PG 的即時 tick 資料
-    2. 每累積足夠的 tick 後，重新取樣成固定長度的 bar
-    3. 用最近5根 bar 的漲跌方向作為特徵，輸入 SVM 模型
-    4. 根據預測方向和當前倉位決定是否下單
+    IBKR live trading strategy class.
+    Logic:
+    1. Subscribe to real-time tick data for PG.
+    2. Resample accumulated ticks into fixed-length bars.
+    3. Use the direction of the last 5 bars as features for the SVM model.
+    4. Decide whether to place an order based on the predicted direction and current position.
     """
 
     def __init__(self, model, cols, lags=5):
-        self.model    = model      # 已訓練的 SVM 模型
-        self.cols     = cols       # 特徵欄位名稱
-        self.lags     = lags       # 滯後天數
-        self.position = 0          # 當前倉位（+1 多、-1 空、0 中性）
-        self.tick_df  = pd.DataFrame()  # 暫存 tick 資料
-        self.ib       = IB()       # IBKR 連線物件
+        self.model    = model      # Pre-trained SVM model
+        self.cols     = cols       # Feature column names
+        self.lags     = lags       # Number of lag features
+        self.position = 0          # Current position (+1 long, -1 short, 0 flat)
+        self.tick_df  = pd.DataFrame()  # Buffer for tick data
+        self.ib       = IB()       # IBKR connection object
 
     def connect(self):
-        """連線到 TWS 或 IB Gateway"""
+        """Connect to TWS or IB Gateway."""
         self.ib.connect(HOST, PORT, clientId=CLIENT_ID)
-        logger.info(f'已連線到 IBKR（{HOST}:{PORT}）')
+        logger.info(f'Connected to IBKR ({HOST}:{PORT})')
 
     def disconnect(self):
-        """斷線"""
+        """Disconnect from IBKR."""
         self.ib.disconnect()
-        logger.info('已斷線')
+        logger.info('Disconnected')
 
     def get_contract(self):
-        """建立 PG 股票合約物件"""
+        """Create the PG stock contract object."""
         return Stock(SYMBOL, EXCHANGE, CURRENCY)
 
     def process_tick(self, ticker):
         """
-        處理每個進來的 tick 資料。
-        ticker：IBKR 提供的即時行情物件，包含 bid、ask、last 等欄位
+        Process each incoming tick.
+        ticker: IBKR real-time quote object containing bid, ask, last, etc.
         """
-        # 取得當前中間價（mid price = (bid + ask) / 2）
+        # Compute the mid price: (bid + ask) / 2
         mid = (ticker.bid + ticker.ask) / 2 if ticker.bid and ticker.ask else None
         if mid is None:
             return
 
-        # 將 tick 資料加入暫存 DataFrame
+        # Append tick to the buffer DataFrame
         now = pd.Timestamp.now()
         self.tick_df = pd.concat([
             self.tick_df,
             pd.DataFrame({'mid': [mid]}, index=[now])
         ])
 
-        # 重新取樣成 bar（例如每1分鐘一根）
+        # Resample ticks into bars (e.g., 1-minute bars)
         bar_df = self.tick_df['mid'].resample(BAR_SIZE).last().ffill()
 
-        # 至少需要 lags+1 根 bar 才能計算特徵
+        # Need at least lags+1 bars to compute features
         if len(bar_df) <= self.lags:
             return
 
-        # 計算最近幾根 bar 的 log return 並轉為二元方向
+        # Compute log returns for each bar and convert to binary direction
         bar_df = bar_df.to_frame()
         bar_df['returns']   = np.log(bar_df['mid'] / bar_df['mid'].shift(1))
         bar_df['direction'] = np.where(bar_df['returns'] > 0, 1, 0)
         bar_df.dropna(inplace=True)
 
-        # 取最近 lags 根 bar 的方向作為特徵
+        # Take the direction of the last `lags` bars as the feature vector
         features = bar_df['direction'].iloc[-self.lags:].values.reshape(1, -1)
 
         if features.shape[1] < self.lags:
             return
 
-        # SVM 預測：+1 預測上漲，-1 預測下跌
-        signal = self.modelpredict.(features)[0]
+        # SVM prediction: +1 = predict up, -1 = predict down
+        signal = self.model.predict(features)[0]
 
-        logger.info(f'特徵：{features}，當前倉位：{self.position}，'
-                    f'預測訊號：{signal}')
+        logger.info(f'Features: {features}, current position: {self.position}, '
+                    f'predicted signal: {signal}')
 
-        # 根據訊號和當前倉位決定下單
+        # Place order based on signal and current position
         self._execute_order(signal)
 
     def _execute_order(self, signal):
         """
-        根據訊號執行下單。
-        邏輯：
-        - 目前空/中性 且 訊號做多 → 買進
-        - 目前多/中性 且 訊號做空 → 賣出（放空）
-        - 書中沒有做空股票（stock 不像 FX 可以直接做空），這裡改為：
-          多頭反轉時先平倉再做空（需要融券資格，Paper Trading 帳號可測試）
+        Execute an order based on the signal.
+        Logic:
+        - Currently short/flat and signal is long  -> buy
+        - Currently long/flat and signal is short  -> sell (go short)
+        - Note: shorting equities (unlike FX) requires margin/short-selling approval.
+          In this implementation, reversing a long position first closes it then goes short.
+          Paper Trading accounts can be used to test this.
         """
         contract = self.get_contract()
 
         if self.position in [0, -1] and signal == 1:
-            # 買進：數量 = QUANTITY + 當前空頭數量（若有）
+            # Buy: quantity = QUANTITY + any existing short position
             qty = QUANTITY + (QUANTITY if self.position == -1 else 0)
             order = MarketOrder('BUY', qty)
             trade = self.ib.placeOrder(contract, order)
-            self.ib.sleep(1)  # 等待成交
+            self.ib.sleep(1)  # Wait for fill
             self.position = 1
-            logger.info(f'下單 BUY {qty} 股 PG，當前倉位：+1（多頭）')
+            logger.info(f'Order BUY {qty} shares of PG; current position: +1 (long)')
 
         elif self.position in [0, 1] and signal == -1:
-            # 賣出：先平多頭再建空頭
+            # Sell: close long first, then go short
             qty = QUANTITY + (QUANTITY if self.position == 1 else 0)
             order = MarketOrder('SELL', qty)
             trade = self.ib.placeOrder(contract, order)
             self.ib.sleep(1)
             self.position = -1
-            logger.info(f'下單 SELL {qty} 股 PG，當前倉位：-1（空頭）')
+            logger.info(f'Order SELL {qty} shares of PG; current position: -1 (short)')
 
         else:
-            logger.info('無需換手，維持當前倉位')
+            logger.info('No position change needed; maintaining current position')
 
     def close_all(self):
-        """平掉所有倉位"""
+        """Close all open positions."""
         contract = self.get_contract()
         if self.position == 1:
             order = MarketOrder('SELL', QUANTITY)
             self.ib.placeOrder(contract, order)
-            logger.info('平倉：賣出 PG 多頭')
+            logger.info('Closing position: selling PG long')
         elif self.position == -1:
             order = MarketOrder('BUY', QUANTITY)
             self.ib.placeOrder(contract, order)
-            logger.info('平倉：買回 PG 空頭')
+            logger.info('Closing position: buying back PG short')
         self.position = 0
 
     def run(self, duration_seconds=3600):
         """
-        啟動即時交易，持續 duration_seconds 秒後自動平倉停止。
+        Start live trading and automatically close positions after duration_seconds.
         """
         self.connect()
         contract  = self.get_contract()
 
-        # 訂閱即時行情（reqMktData）
+        # Subscribe to real-time market data
         ticker = self.ib.reqMktData(contract, '', False, False)
 
-        logger.info(f'開始交易 PG，持續 {duration_seconds} 秒...')
+        logger.info(f'Trading PG for {duration_seconds} seconds...')
         start_time = time.time()
 
-        # 主迴圈：每隔一段時間處理最新 tick
+        # Main loop: process the latest tick every 15 seconds
         while time.time() - start_time < duration_seconds:
-            self.ib.sleep(15)       # 每15秒處理一次
+            self.ib.sleep(15)
             self.process_tick(ticker)
 
-        # 時間到：平倉並斷線
-        logger.info('交易時間結束，開始平倉...')
+        # Time up: close all positions and disconnect
+        logger.info('Trading period ended; closing all positions...')
         self.close_all()
         self.ib.cancelMktData(contract)
         self.disconnect()
 
 
 # ════════════════════════════════════════════════════════════════════════════════
-# 執行入口
+# Entry point
 # ════════════════════════════════════════════════════════════════════════════════
 if __name__ == '__main__':
-    # 載入已訓練的模型
+    # Load pre-trained model
     with open('algorithm.pkl', 'rb') as f:
         saved = pickle.load(f)
 
@@ -255,16 +256,16 @@ if __name__ == '__main__':
     cols  = saved['cols']
     lags  = saved['lags']
 
-    # 建立交易者物件並啟動
+    # Instantiate the trader and start
     trader = IBKROnlineTrader(model=model, cols=cols, lags=lags)
 
-    # 注意：以下指令會真的連線到 IBKR 並下單
-    # 請先在 Paper Trading 帳號測試，確認邏輯正確後再切換正式帳號
-    # trader.run(duration_seconds=3600)  # 執行1小時
+    # WARNING: the line below will connect to IBKR and place real orders.
+    # Test with a Paper Trading account first (PORT=7497) before switching to live (PORT=7496).
+    # trader.run(duration_seconds=3600)  # Run for 1 hour
 
-    print('概念7 程式碼已載入完成。')
-    print('執行前請確認：')
-    print('  1. IBKR TWS 或 IB Gateway 已開啟')
-    print('  2. API 連線已在 TWS 設定中啟用')
-    print('  3. algorithm.pkl 檔案存在（先執行 train_and_save_model()）')
-    print('  4. 先用 Paper Trading 帳號測試（PORT=7497）')
+    print('Online algorithm script loaded successfully.')
+    print('Before running, verify:')
+    print('  1. IBKR TWS or IB Gateway is running')
+    print('  2. API connections are enabled in TWS settings')
+    print('  3. algorithm.pkl exists (run train_and_save_model() first)')
+    print('  4. Test with Paper Trading account (PORT=7497)')
